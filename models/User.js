@@ -1,0 +1,39 @@
+const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema(
+    {
+        studentId: {
+            type: String,
+            unique: true,
+            index: true,
+        },
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            lowercase: true,
+            trim: true,
+        },
+
+        password: {
+            type: String,
+            required: true,
+        },
+
+        assignedCourses: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Course",
+            },
+        ],
+    },
+    { timestamps: true }
+);
+
+module.exports = mongoose.model("User", userSchema);
