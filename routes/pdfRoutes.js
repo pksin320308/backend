@@ -30,16 +30,16 @@ const upload = multer({
 });
 
 // Admin only
-router.post("/", protect, adminOnly, upload.single("pdf"), createPdf);
-router.get("/", protect, adminOnly, getAllPdfs);
-router.put("/:id", protect, adminOnly, updatePdf);
-router.delete("/:id", protect, adminOnly, deletePdf);
+router.post("/", protect("admin"), adminOnly, upload.single("pdf"), createPdf);
+router.get("/", protect("admin"), adminOnly, getAllPdfs);
+router.put("/:id", protect("admin"), adminOnly, updatePdf);
+router.delete("/:id", protect("admin"), adminOnly, deletePdf);
 
 // Student/Admin
-router.get("/course/:courseId", protect, getPdfsByCourse);
-router.get("/view/:pdfId", protect, getPdfViewer);
+router.get("/course/:courseId", protect("student"), getPdfsByCourse);
+router.get("/view/:pdfId", protect("student"), getPdfViewer);
 
 // Token based stream route
-router.get("/stream/:pdfId", protect, streamPdf);
+router.get("/stream/:pdfId", protect("student"), streamPdf);
 
 module.exports = router;
