@@ -6,12 +6,14 @@ const CourseRequest = require("../models/CourseRequest");
 const Admin = require("../models/Admin");
 const User = require("../models/User");
 
+// Generate JWT token with user id and role
 const generateToken = (id, role) => {
     return jwt.sign({ id, role }, process.env.JWT_SECRET, {
         expiresIn: "7d",
     });
 };
 
+// Send common error response
 const sendError = (res, statusCode, message) => {
     return res.status(statusCode).json({
         success: false,
@@ -19,15 +21,23 @@ const sendError = (res, statusCode, message) => {
     });
 };
 
-const sendLoginResponse = (res, user, role, message) => {
-    const token = generateToken(user._id, role);
-
-    res.cookie("token", token, {
+// Common cookie options
+const getCookieOptions = () => {
+    return {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 15 * 60 * 1000,
-    });
+    };
+};
+
+// Send login response and store role-based token in cookie
+const sendLoginResponse = (res, user, role, message) => {
+    const token = generateToken(user._id, role);
+
+    const cookieName = role === "admin" ? "adminToken" : "studentToken";
+
+    res.cookie(cookieName, token, getCookieOptions());
 
     return res.status(200).json({
         success: true,
@@ -42,7 +52,7 @@ const sendLoginResponse = (res, user, role, message) => {
     });
 };
 
-//studentID
+// Generate unique student ID
 const generateStudentId = async () => {
     const currentYear = new Date().getFullYear().toString().slice(-2);
 
@@ -59,9 +69,11 @@ const generateStudentId = async () => {
 
     return studentId;
 };
-//for captcha store
+
+// Store captcha temporarily in memory
 const captchaStore = new Map();
 
+// Generate random captcha text
 const generateCaptchaText = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let code = "";
@@ -73,6 +85,7 @@ const generateCaptchaText = () => {
     return code;
 };
 
+// Hash captcha before storing
 const hashCaptcha = (captcha) => {
     return crypto
         .createHash("sha256")
@@ -80,7 +93,7 @@ const hashCaptcha = (captcha) => {
         .digest("hex");
 };
 
-//get captcha
+// Create and return new captcha
 const getCaptcha = async (req, res) => {
     try {
         const captchaText = generateCaptchaText();
@@ -88,10 +101,9 @@ const getCaptcha = async (req, res) => {
 
         captchaStore.set(captchaId, {
             hash: hashCaptcha(captchaText),
-            expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+            expiresAt: Date.now() + 5 * 60 * 1000,
         });
 
-        // expired captcha cleanup
         for (const [id, data] of captchaStore.entries()) {
             if (data.expiresAt < Date.now()) {
                 captchaStore.delete(id);
@@ -101,7 +113,7 @@ const getCaptcha = async (req, res) => {
         return res.status(200).json({
             success: true,
             captchaId,
-            captchaText, // frontend me display ke liye
+            captchaText,
         });
     } catch (error) {
         console.error("Captcha Error:", error);
@@ -112,6 +124,7 @@ const getCaptcha = async (req, res) => {
     }
 };
 
+// Verify captcha input with stored hash
 const verifyCaptcha = (captchaId, captchaInput) => {
     if (!captchaId || !captchaInput) {
         return false;
@@ -134,13 +147,12 @@ const verifyCaptcha = (captchaId, captchaInput) => {
         return false;
     }
 
-    // one-time use captcha
     captchaStore.delete(captchaId);
 
     return true;
 };
 
-// Password policy validation
+// Validate password strength
 const validatePassword = (password) => {
     if (!password || password.length < 8) {
         return "Password must be at least 8 characters long";
@@ -165,7 +177,7 @@ const validatePassword = (password) => {
     return null;
 };
 
-// Student register
+// Register a new student
 const registerStudent = async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -188,7 +200,6 @@ const registerStudent = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-
         const studentId = await generateStudentId();
 
         const student = new User({
@@ -216,7 +227,7 @@ const registerStudent = async (req, res) => {
     }
 };
 
-// Common login for admin and student
+// Login admin or student
 const login = async (req, res) => {
     try {
         const { email, password, captchaId, captchaInput } = req.body;
@@ -233,7 +244,7 @@ const login = async (req, res) => {
                 message: "Invalid or expired CAPTCHA",
             });
         }
-        // First check admin
+
         const admin = await Admin.findOne({ email });
 
         if (admin) {
@@ -251,7 +262,6 @@ const login = async (req, res) => {
             );
         }
 
-        // Then check student
         const student = await User.findOne({ email });
 
         if (student) {
@@ -276,7 +286,7 @@ const login = async (req, res) => {
     }
 };
 
-// Logged-in profile
+// Return logged-in user profile
 const profile = async (req, res) => {
     try {
         return res.json({
@@ -296,7 +306,7 @@ const profile = async (req, res) => {
     }
 };
 
-// Student sends course request
+// Send course access request
 const requestCourse = async (req, res) => {
     try {
         const { courseId } = req.body;
@@ -347,7 +357,7 @@ const requestCourse = async (req, res) => {
     }
 };
 
-// Student sees own requests
+// Get logged-in student's course requests
 const getMyCourseRequests = async (req, res) => {
     try {
         const requests = await CourseRequest.find({
@@ -366,13 +376,37 @@ const getMyCourseRequests = async (req, res) => {
     }
 };
 
-//logout
+// Clear login cookies and logout user
 const logout = async (req, res) => {
-    res.clearCookie("token", {
+    const { role } = req.body;
+
+    const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    });
+    };
+
+    if (role === "admin") {
+        res.clearCookie("adminToken", cookieOptions);
+
+        return res.json({
+            success: true,
+            message: "Admin logout successful",
+        });
+    }
+
+    if (role === "student") {
+        res.clearCookie("studentToken", cookieOptions);
+
+        return res.json({
+            success: true,
+            message: "Student logout successful",
+        });
+    }
+
+    res.clearCookie("adminToken", cookieOptions);
+    res.clearCookie("studentToken", cookieOptions);
+    res.clearCookie("token", cookieOptions);
 
     return res.json({
         success: true,
@@ -388,5 +422,4 @@ module.exports = {
     requestCourse,
     getMyCourseRequests,
     getCaptcha,
-
 };
