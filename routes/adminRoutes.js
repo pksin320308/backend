@@ -10,10 +10,10 @@ const adminOnly = require("../middleware/adminMiddleware");
 
 const router = express.Router();
 
-router.get("/students", protect, adminOnly, getAllStudents);
+router.get("/students", protect("admin"), adminOnly, getAllStudents);
 
 //course
-router.get("/", protect, adminOnly, getAllCourseRequests);
-router.put("/:requestId/status", protect, adminOnly, updateCourseRequestStatus);
+router.get("/", protect("admin"), adminOnly, getAllCourseRequests);
+router.put("/:requestId/status", protect("admin"), adminOnly, updateCourseRequestStatus);
 
 module.exports = router;
