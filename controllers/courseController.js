@@ -117,7 +117,7 @@ const updateCourse = async (req, res) => {
         if (isActive !== undefined) updateData.isActive = isActive;
 
         const course = await Course.findByIdAndUpdate(id, updateData, {
-            new: true,
+            returnDocument: "after"
             runValidators: true,
         });
 
