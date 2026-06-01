@@ -267,10 +267,9 @@ const streamPdf = async (req, res) => {
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", "inline; filename=protected.pdf");
-        res.setHeader(
-            "Cache-Control",
-            "no-store, no-cache, must-revalidate, private"
-        );
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Accept-Ranges", "none");
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
         res.setHeader("Pragma", "no-cache");
         res.setHeader("Expires", "0");
 
@@ -311,7 +310,7 @@ const updatePdf = async (req, res) => {
         }
 
         const pdf = await Pdf.findByIdAndUpdate(id, updateData, {
-            new: true,
+           returnDocument: "after",
             runValidators: true,
         });
 
