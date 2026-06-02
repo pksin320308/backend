@@ -14,7 +14,7 @@ const captchaStore = new Map();
 // Generates JWT token with user id and role.
 const generateToken = (id, role) => {
     return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-        expiresIn: "15 * 60 * 1000",
+        expiresIn: "15m",
     });
 };
 
